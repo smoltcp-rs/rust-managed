@@ -1,0 +1,8 @@
+[package]
+name = "managed"
+description = "Placeholder"
+version = "0.0.0"
+authors = ["whitequark <whitequark@whitequark.org>"]
+license = "0BSD"
+
+[dependencies]
