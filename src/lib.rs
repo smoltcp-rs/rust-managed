@@ -1,12 +1,12 @@
 #![no_std]
-#![cfg_attr(feature = "use_alloc", feature(alloc))]
-#![cfg_attr(feature = "use_collections", feature(collections))]
+#![cfg_attr(all(feature = "use_alloc", not(feature = "use_std")), feature(alloc))]
+#![cfg_attr(all(feature = "use_collections", not(feature = "use_std")), feature(collections))]
 
 #[cfg(feature = "use_std")]
 extern crate std;
-#[cfg(feature = "use_alloc")]
+#[cfg(all(feature = "use_alloc", not(feature = "use_std")))]
 extern crate alloc;
-#[cfg(feature = "use_collections")]
+#[cfg(all(feature = "use_collections", not(feature = "use_std")))]
 extern crate collections;
 
 mod object;

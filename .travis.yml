@@ -13,6 +13,8 @@ matrix:
       env: FEATURES='use_collections'
     - rust: nightly
       env: FEATURES='use_alloc use_collections'
+    - rust: nightly
+      env: FEATURES='use_std use_alloc use_collections'
 script:
    - cargo build --features "$FEATURES"
 notifications:

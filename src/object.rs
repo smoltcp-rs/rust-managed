@@ -3,11 +3,11 @@ use core::fmt;
 
 #[cfg(feature = "use_std")]
 use std::boxed::Box;
-#[cfg(feature = "use_alloc")]
+#[cfg(all(feature = "use_alloc", not(feature = "use_std")))]
 use alloc::boxed::Box;
 #[cfg(feature = "use_std")]
 use std::vec::Vec;
-#[cfg(all(feature = "use_alloc", feature = "use_collections"))]
+#[cfg(all(feature = "use_alloc", feature = "use_collections", not(feature = "use_std")))]
 use collections::vec::Vec;
 
 /// A managed object.

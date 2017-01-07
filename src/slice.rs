@@ -3,7 +3,7 @@ use core::fmt;
 
 #[cfg(feature = "use_std")]
 use std::vec::Vec;
-#[cfg(feature = "use_collections")]
+#[cfg(all(feature = "use_collections", not(feature = "use_std")))]
 use collections::vec::Vec;
 
 /// A managed slice.
