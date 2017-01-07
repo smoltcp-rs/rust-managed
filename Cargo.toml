@@ -1,8 +1,17 @@
 [package]
 name = "managed"
-description = "Placeholder"
-version = "0.0.0"
+version = "0.1.0"
 authors = ["whitequark <whitequark@whitequark.org>"]
+description = "An interface for logically owning objects, whether or not heap allocation is available."
+documentation = "https://docs.rs/managed/"
+homepage = "https://github.com/m-labs/rust-managed"
+repository = "https://github.com/m-labs/rust-managed.git"
+readme = "README.md"
+keywords = ["ownership"]
 license = "0BSD"
 
-[dependencies]
+[features]
+use_std = []
+use_alloc = []
+use_collections = []
+default = ["use_std"]
