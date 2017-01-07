@@ -27,7 +27,7 @@ use collections::vec::Vec;
 ///
 /// Note that a `Vec<T>` converted into an `Into<Managed<'static, [T]>>` gets transformed
 /// into a boxed slice, and can no longer be resized. See also
-/// [ManagedSlice][struct.ManagedSlice.html], which does not have this drawback.
+/// [ManagedSlice](enum.ManagedSlice.html), which does not have this drawback.
 pub enum Managed<'a, T: 'a + ?Sized> {
     /// Borrowed variant.
     Borrowed(&'a mut T),

@@ -21,7 +21,7 @@ use collections::vec::Vec;
 /// argument; then, it will be possible to pass either a `Vec<T>`, or a `&'a mut [T]`
 /// without any conversion at the call site.
 ///
-/// See also [Managed][struct.Managed.html].
+/// See also [Managed](enum.Managed.html).
 pub enum ManagedSlice<'a, T: 'a> {
     /// Borrowed variant.
     Borrowed(&'a mut [T]),
