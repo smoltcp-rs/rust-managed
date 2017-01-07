@@ -106,6 +106,8 @@ for details.
 
 Of course, the enums can be always matched explicitly as well.
 
+[doc]: https://docs.rs/managed/
+
 License
 -------
 
