@@ -2,6 +2,10 @@ use core::ops::{Deref, DerefMut};
 use core::fmt;
 
 #[cfg(feature = "use_std")]
+use std::boxed::Box;
+#[cfg(all(feature = "use_alloc", not(feature = "use_std")))]
+use alloc::boxed::Box;
+#[cfg(feature = "use_std")]
 use std::vec::Vec;
 #[cfg(all(feature = "use_collections", not(feature = "use_std")))]
 use collections::vec::Vec;
@@ -47,6 +51,25 @@ impl<'a, T: 'a> From<&'a mut [T]> for ManagedSlice<'a, T> {
         ManagedSlice::Borrowed(value)
     }
 }
+
+macro_rules! from_unboxed_slice {
+    ($n:expr) => (
+        impl<'a, T> From<[T; $n]> for ManagedSlice<'a, T> {
+            #[inline]
+            fn from(value: [T; $n]) -> Self {
+                ManagedSlice::Owned((Box::new(value) as Box<[T]>).into_vec())
+            }
+        }
+    );
+    ($n:expr, $( $r:expr ),*) => (
+        from_unboxed_slice!($n);
+        from_unboxed_slice!($( $r ),*);
+    )
+}
+
+#[cfg(any(feature = "use_std", all(feature = "use_alloc", feature = "use_collections")))]
+from_unboxed_slice!(1,   2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15, 16,
+                    17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32);
 
 #[cfg(any(feature = "use_std", feature = "use_collections"))]
 impl<T: 'static> From<Vec<T>> for ManagedSlice<'static, T> {
