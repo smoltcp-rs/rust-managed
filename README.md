@@ -30,7 +30,7 @@ There are three things the struct `Interface` is parameterized over:
   * a slice of `Socket`s, which it either owns or borrows mutably, and which further either
     own or borrow some memory.
 
-The motivaion for using `BorrowMut` is that in environments with heap, the struct ought to
+The motivation for using `BorrowMut` is that in environments with heap, the struct ought to
 own a `Vec`; on the other hand, without heap there is neither `Vec` nor `Box`, and it is only
 possible to use a `&mut`. Both of these implement BorrowMut.
 
