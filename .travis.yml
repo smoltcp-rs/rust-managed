@@ -16,7 +16,7 @@ matrix:
     - rust: nightly
       env: FEATURES='use_std use_alloc use_collections'
 script:
-   - cargo build --features "$FEATURES"
+   - cargo build --no-default-features --features "$FEATURES"
 notifications:
   irc:
     channels:
