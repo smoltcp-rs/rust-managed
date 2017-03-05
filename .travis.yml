@@ -2,19 +2,19 @@ language: rust
 matrix:
   include:
     - rust: stable
-      env: FEATURES='use_std'
+      env: FEATURES='std'
     - rust: beta
-      env: FEATURES='use_std'
+      env: FEATURES='std'
     - rust: nightly
       env: FEATURES=''
     - rust: nightly
-      env: FEATURES='use_alloc'
+      env: FEATURES='alloc'
     - rust: nightly
-      env: FEATURES='use_collections'
+      env: FEATURES='collections'
     - rust: nightly
-      env: FEATURES='use_alloc use_collections'
+      env: FEATURES='alloc collections'
     - rust: nightly
-      env: FEATURES='use_std use_alloc use_collections'
+      env: FEATURES='std alloc collections'
 script:
    - cargo build --no-default-features --features "$FEATURES"
 notifications:
