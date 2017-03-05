@@ -8,6 +8,7 @@ homepage = "https://github.com/m-labs/rust-managed"
 repository = "https://github.com/m-labs/rust-managed.git"
 readme = "README.md"
 keywords = ["ownership"]
+categories = ["embedded"]
 license = "0BSD"
 
 [features]
