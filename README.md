@@ -66,18 +66,18 @@ You probably want to disable default features and configure them one by one:
 managed = { version = "...", default-features = false, features = ["..."] }
 ```
 
-### Feature `use_std`
+### Feature `std`
 
-The `use_std` feature enables use of `Box` and `Vec` through a dependency on the `std` crate.
+The `std` feature enables use of `Box` and `Vec` through a dependency on the `std` crate.
 
-### Feature `use_alloc`
+### Feature `alloc`
 
-The `use_alloc` feature enables use of `Box` through a dependency on the `alloc` crate.
+The `alloc` feature enables use of `Box` through a dependency on the `alloc` crate.
 This only works on nightly rustc.
 
-### Feature `use_collections`
+### Feature `collections`
 
-The `use_collections` feature enables use of `Vec` through a dependency on
+The `collections` feature enables use of `Vec` through a dependency on
 the `collections` crate. This only works on nightly rustc.
 
 Usage

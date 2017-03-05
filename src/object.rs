@@ -1,13 +1,13 @@
 use core::ops::{Deref, DerefMut};
 use core::fmt;
 
-#[cfg(feature = "use_std")]
+#[cfg(feature = "std")]
 use std::boxed::Box;
-#[cfg(all(feature = "use_alloc", not(feature = "use_std")))]
+#[cfg(all(feature = "alloc", not(feature = "std")))]
 use alloc::boxed::Box;
-#[cfg(feature = "use_std")]
+#[cfg(feature = "std")]
 use std::vec::Vec;
-#[cfg(all(feature = "use_alloc", feature = "use_collections", not(feature = "use_std")))]
+#[cfg(all(feature = "alloc", feature = "collections", not(feature = "std")))]
 use collections::vec::Vec;
 
 /// A managed object.
@@ -31,8 +31,8 @@ use collections::vec::Vec;
 pub enum Managed<'a, T: 'a + ?Sized> {
     /// Borrowed variant.
     Borrowed(&'a mut T),
-    /// Owned variant, only available with the `use_std` or `use_alloc` feature enabled.
-    #[cfg(any(feature = "use_std", feature = "use_alloc"))]
+    /// Owned variant, only available with the `std` or `alloc` feature enabled.
+    #[cfg(any(feature = "std", feature = "alloc"))]
     Owned(Box<T>)
 }
 
@@ -41,7 +41,7 @@ impl<'a, T: 'a + ?Sized> fmt::Debug for Managed<'a, T>
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             &Managed::Borrowed(ref x) => write!(f, "Borrowed({:?})", x),
-            #[cfg(any(feature = "use_std", feature = "use_alloc"))]
+            #[cfg(any(feature = "std", feature = "alloc"))]
             &Managed::Owned(ref x)    => write!(f, "Owned({:?})", x)
         }
 
@@ -54,14 +54,14 @@ impl<'a, T: 'a + ?Sized> From<&'a mut T> for Managed<'a, T> {
     }
 }
 
-#[cfg(any(feature = "use_std", feature = "use_alloc"))]
+#[cfg(any(feature = "std", feature = "alloc"))]
 impl<T: ?Sized + 'static> From<Box<T>> for Managed<'static, T> {
     fn from(value: Box<T>) -> Self {
         Managed::Owned(value)
     }
 }
 
-#[cfg(any(feature = "use_std", all(feature = "use_alloc", feature = "use_collections")))]
+#[cfg(any(feature = "std", all(feature = "alloc", feature = "collections")))]
 impl<T: 'static> From<Vec<T>> for Managed<'static, [T]> {
     fn from(value: Vec<T>) -> Self {
         Managed::Owned(value.into_boxed_slice())
@@ -74,7 +74,7 @@ impl<'a, T: 'a + ?Sized> Deref for Managed<'a, T> {
     fn deref(&self) -> &Self::Target {
         match self {
             &Managed::Borrowed(ref value) => value,
-            #[cfg(any(feature = "use_std", feature = "use_alloc"))]
+            #[cfg(any(feature = "std", feature = "alloc"))]
             &Managed::Owned(ref value) => value
         }
     }
@@ -84,7 +84,7 @@ impl<'a, T: 'a + ?Sized> DerefMut for Managed<'a, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         match self {
             &mut Managed::Borrowed(ref mut value) => value,
-            #[cfg(any(feature = "use_std", feature = "use_alloc"))]
+            #[cfg(any(feature = "std", feature = "alloc"))]
             &mut Managed::Owned(ref mut value) => value
         }
     }

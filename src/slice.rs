@@ -1,13 +1,13 @@
 use core::ops::{Deref, DerefMut};
 use core::fmt;
 
-#[cfg(feature = "use_std")]
+#[cfg(feature = "std")]
 use std::boxed::Box;
-#[cfg(all(feature = "use_alloc", not(feature = "use_std")))]
+#[cfg(all(feature = "alloc", not(feature = "std")))]
 use alloc::boxed::Box;
-#[cfg(feature = "use_std")]
+#[cfg(feature = "std")]
 use std::vec::Vec;
-#[cfg(all(feature = "use_collections", not(feature = "use_std")))]
+#[cfg(all(feature = "collections", not(feature = "std")))]
 use collections::vec::Vec;
 
 /// A managed slice.
@@ -29,8 +29,8 @@ use collections::vec::Vec;
 pub enum ManagedSlice<'a, T: 'a> {
     /// Borrowed variant.
     Borrowed(&'a mut [T]),
-    /// Owned variant, only available with the `use_std` or `use_collections` feature enabled.
-    #[cfg(any(feature = "use_std", feature = "use_collections"))]
+    /// Owned variant, only available with the `std` or `collections` feature enabled.
+    #[cfg(any(feature = "std", feature = "collections"))]
     Owned(Vec<T>)
 }
 
@@ -39,7 +39,7 @@ impl<'a, T: 'a> fmt::Debug for ManagedSlice<'a, T>
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             &ManagedSlice::Borrowed(ref x) => write!(f, "Borrowed({:?})", x),
-            #[cfg(any(feature = "use_std", feature = "use_collections"))]
+            #[cfg(any(feature = "std", feature = "collections"))]
             &ManagedSlice::Owned(ref x)    => write!(f, "Owned({:?})", x)
         }
 
@@ -67,11 +67,11 @@ macro_rules! from_unboxed_slice {
     )
 }
 
-#[cfg(any(feature = "use_std", all(feature = "use_alloc", feature = "use_collections")))]
+#[cfg(any(feature = "std", all(feature = "alloc", feature = "collections")))]
 from_unboxed_slice!(0,  1,   2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
                     16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31);
 
-#[cfg(any(feature = "use_std", feature = "use_collections"))]
+#[cfg(any(feature = "std", feature = "collections"))]
 impl<T: 'static> From<Vec<T>> for ManagedSlice<'static, T> {
     fn from(value: Vec<T>) -> Self {
         ManagedSlice::Owned(value)
@@ -84,7 +84,7 @@ impl<'a, T: 'a> Deref for ManagedSlice<'a, T> {
     fn deref(&self) -> &Self::Target {
         match self {
             &ManagedSlice::Borrowed(ref value) => value,
-            #[cfg(any(feature = "use_std", feature = "use_collections"))]
+            #[cfg(any(feature = "std", feature = "collections"))]
             &ManagedSlice::Owned(ref value) => value
         }
     }
@@ -94,7 +94,7 @@ impl<'a, T: 'a> DerefMut for ManagedSlice<'a, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         match self {
             &mut ManagedSlice::Borrowed(ref mut value) => value,
-            #[cfg(any(feature = "use_std", feature = "use_collections"))]
+            #[cfg(any(feature = "std", feature = "collections"))]
             &mut ManagedSlice::Owned(ref mut value) => value
         }
     }
