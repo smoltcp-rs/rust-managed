@@ -10,11 +10,7 @@ matrix:
     - rust: nightly
       env: FEATURES='alloc'
     - rust: nightly
-      env: FEATURES='collections'
-    - rust: nightly
-      env: FEATURES='alloc collections'
-    - rust: nightly
-      env: FEATURES='std alloc collections'
+      env: FEATURES='std alloc'
 script:
    - cargo build --no-default-features --features "$FEATURES"
 notifications:

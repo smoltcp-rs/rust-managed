@@ -7,8 +7,8 @@ use std::boxed::Box;
 use alloc::boxed::Box;
 #[cfg(feature = "std")]
 use std::vec::Vec;
-#[cfg(all(feature = "alloc", feature = "collections", not(feature = "std")))]
-use collections::vec::Vec;
+#[cfg(all(feature = "alloc", not(feature = "std")))]
+use alloc::vec::Vec;
 
 /// A managed object.
 ///
@@ -61,7 +61,7 @@ impl<T: ?Sized + 'static> From<Box<T>> for Managed<'static, T> {
     }
 }
 
-#[cfg(any(feature = "std", all(feature = "alloc", feature = "collections")))]
+#[cfg(any(feature = "std", feature = "alloc"))]
 impl<T: 'static> From<Vec<T>> for Managed<'static, [T]> {
     fn from(value: Vec<T>) -> Self {
         Managed::Owned(value.into_boxed_slice())

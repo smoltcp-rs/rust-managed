@@ -72,13 +72,8 @@ The `std` feature enables use of `Box` and `Vec` through a dependency on the `st
 
 ### Feature `alloc`
 
-The `alloc` feature enables use of `Box` through a dependency on the `alloc` crate.
+The `alloc` feature enables use of `Box` and `Vec` through a dependency on the `alloc` crate.
 This only works on nightly rustc.
-
-### Feature `collections`
-
-The `collections` feature enables use of `Vec` through a dependency on
-the `collections` crate. This only works on nightly rustc.
 
 Usage
 -----
