@@ -14,5 +14,4 @@ license = "0BSD"
 [features]
 std = []
 alloc = []
-collections = []
 default = ["std"]
