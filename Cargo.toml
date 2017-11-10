@@ -15,3 +15,5 @@ license = "0BSD"
 std = []
 alloc = []
 default = ["std"]
+# Unstable features
+map = []

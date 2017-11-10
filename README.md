@@ -68,18 +68,25 @@ managed = { version = "...", default-features = false, features = ["..."] }
 
 ### Feature `std`
 
-The `std` feature enables use of `Box` and `Vec` through a dependency on the `std` crate.
+The `std` feature enables use of `Box`, `Vec`, and `BTreeMap` through a dependency
+on the `std` crate.
 
 ### Feature `alloc`
 
-The `alloc` feature enables use of `Box` and `Vec` through a dependency on the `alloc` crate.
-This only works on nightly rustc.
+The `alloc` feature enables use of `Box`, `Vec`, and `BTreeMap` through a dependency
+on the `alloc` crate. This only works on nightly rustc.
+
+### Feature `map`
+
+The `map` feature, disabled by default, enables the `ManagedMap` enum.
+Its interface is not stable yet and is subject to change.
+It also requires the use of a nightly compiler.
 
 Usage
 -----
 
 _managed_ is an interoperability crate: it does not include complex functionality but rather
-defines an interface that may be used by many downstream crates. It includes two enums:
+defines an interface that may be used by many downstream crates. It includes three enums:
 
 ```rust
 pub enum Managed<'a, T: 'a + ?Sized> {
@@ -93,13 +100,21 @@ pub enum ManagedSlice<'a, T: 'a> {
     #[cfg(/* Vec available */)]
     Owned(Vec<T>)
 }
+
+pub enum ManagedMap<'a, K: Hash + 'a, V: 'a> {
+    /// Borrowed variant.
+    Borrowed(&'a mut [(K, V)]),
+    /// Owned variant, only available with the `std` or `alloc` feature enabled.
+    #[cfg(any(feature = "std", feature = "alloc"))]
+    Owned(BTreeMap<K, V>)
+}
 ```
 
-The enums have the `From` implementations from the corresponding types, and `Deref`/`DerefMut`
-implementations to the type `T`, as well as other helper methods; see the [full documentation][doc]
-for details.
+The `Managed` and `ManagedSlice` enums have the `From` implementations from the corresponding
+types, and `Deref`/`DerefMut` implementations to the type `T`, as well as other helper methods,
+and `ManagedMap` is implemented using either a B-tree map or a sorted slice of key-value pairs.
 
-Of course, the enums can be always matched explicitly as well.
+See the [full documentation][doc] for details.
 
 [doc]: https://docs.rs/managed/
 

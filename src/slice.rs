@@ -42,7 +42,6 @@ impl<'a, T: 'a> fmt::Debug for ManagedSlice<'a, T>
             #[cfg(any(feature = "std", feature = "alloc"))]
             &ManagedSlice::Owned(ref x)    => write!(f, "Owned({:?})", x)
         }
-
     }
 }
 

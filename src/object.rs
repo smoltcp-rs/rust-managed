@@ -44,7 +44,6 @@ impl<'a, T: 'a + ?Sized> fmt::Debug for Managed<'a, T>
             #[cfg(any(feature = "std", feature = "alloc"))]
             &Managed::Owned(ref x)    => write!(f, "Owned({:?})", x)
         }
-
     }
 }
 

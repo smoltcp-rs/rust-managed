@@ -1,5 +1,6 @@
 #![no_std]
 #![cfg_attr(all(feature = "alloc", not(feature = "std")), feature(alloc))]
+#![cfg_attr(feature = "map", feature(slice_rotate))]
 
 //! A library that provides a way to logically own objects, whether or not
 //! heap allocation is available.
@@ -11,6 +12,10 @@ extern crate alloc;
 
 mod object;
 mod slice;
+#[cfg(feature = "map")]
+mod map;
 
 pub use object::Managed;
 pub use slice::ManagedSlice;
+#[cfg(feature = "map")]
+pub use map::ManagedMap;
