@@ -157,15 +157,16 @@ impl<'a, K: Ord + 'a, V: 'a> ManagedMap<'a, K, V> {
                     Err(_) if pairs[pairs.len() - 1].is_some() =>
                         Err((key, new_value)), // full
                     Err(idx) => {
-                        let rotate_by = pairs.len() - 1;
+                        let rotate_by = pairs.len() - idx - 1;
                         pairs[idx..].rotate(rotate_by);
+                        assert!(pairs[idx].is_none(), "broken invariant");
                         pairs[idx] = Some((key, new_value));
                         Ok(None)
                     }
                     Ok(idx) => {
                         let mut swap_pair = Some((key, new_value));
                         mem::swap(&mut pairs[idx], &mut swap_pair);
-                        let (_key, value) = swap_pair.unwrap();
+                        let (_key, value) = swap_pair.expect("broken invariant");
                         Ok(Some(value))
                     }
                 }
@@ -182,7 +183,7 @@ impl<'a, K: Ord + 'a, V: 'a> ManagedMap<'a, K, V> {
             &mut ManagedMap::Borrowed(ref mut pairs) => {
                 match binary_search_by_key(pairs, key) {
                     Ok(idx) => {
-                        let (_key, value) = pairs[idx].take().unwrap();
+                        let (_key, value) = pairs[idx].take().expect("broken invariant");
                         pairs[idx..].rotate(1);
                         Some(value)
                     }
@@ -192,6 +193,130 @@ impl<'a, K: Ord + 'a, V: 'a> ManagedMap<'a, K, V> {
             #[cfg(any(feature = "std", feature = "alloc"))]
             &mut ManagedMap::Owned(ref mut map) => map.remove(key)
         }
+    }
+}
+
+// LCOV_EXCL_START
+#[cfg(test)]
+mod test {
+    use super::ManagedMap;
+
+    fn all_pairs_empty() -> [Option<(&'static str, u32)>; 4] {
+        [None; 4]
+    }
+
+    fn one_pair_full() -> [Option<(&'static str, u32)>; 4] {
+        [Some(("a", 1)), None, None, None]
+    }
+
+    fn all_pairs_full() -> [Option<(&'static str, u32)>; 4] {
+        [Some(("a", 1)), Some(("b", 2)), Some(("c", 3)), Some(("d", 4))]
+    }
+
+    fn unwrap<'a, K, V>(map: &'a ManagedMap<'a, K, V>) -> &'a [Option<(K, V)>] {
+        match map {
+            &ManagedMap::Borrowed(ref map) => map,
+            _ => unreachable!()
+        }
+    }
+
+    #[test]
+    fn test_clear() {
+        let mut pairs = all_pairs_full();
+        let mut map = ManagedMap::Borrowed(&mut pairs);
+        map.clear();
+        assert_eq!(unwrap(&map), all_pairs_empty());
+    }
+
+    #[test]
+    fn test_get_some() {
+        let mut pairs = all_pairs_full();
+        let map = ManagedMap::Borrowed(&mut pairs);
+        assert_eq!(map.get("a"), Some(&1));
+        assert_eq!(map.get("b"), Some(&2));
+        assert_eq!(map.get("c"), Some(&3));
+        assert_eq!(map.get("d"), Some(&4));
+    }
+
+    #[test]
+    fn test_get_none() {
+        let mut pairs = one_pair_full();
+        let map = ManagedMap::Borrowed(&mut pairs);
+        assert_eq!(map.get("q"), None);
+    }
+
+    #[test]
+    fn test_get_mut_some() {
+        let mut pairs = all_pairs_full();
+        let mut map = ManagedMap::Borrowed(&mut pairs);
+        assert_eq!(map.get_mut("a"), Some(&mut 1));
+        assert_eq!(map.get_mut("b"), Some(&mut 2));
+        assert_eq!(map.get_mut("c"), Some(&mut 3));
+        assert_eq!(map.get_mut("d"), Some(&mut 4));
+    }
+
+    #[test]
+    fn test_get_mut_none() {
+        let mut pairs = one_pair_full();
+        let mut map = ManagedMap::Borrowed(&mut pairs);
+        assert_eq!(map.get_mut("q"), None);
+    }
+
+    #[test]
+    fn test_insert_empty() {
+        let mut pairs = all_pairs_empty();
+        let mut map = ManagedMap::Borrowed(&mut pairs);
+        assert_eq!(map.insert("a", 1), Ok(None));
+        assert_eq!(unwrap(&map),       [Some(("a", 1)), None, None, None]);
+    }
+
+    #[test]
+    fn test_insert_replace() {
+        let mut pairs = all_pairs_empty();
+        let mut map = ManagedMap::Borrowed(&mut pairs);
+        assert_eq!(map.insert("a", 1), Ok(None));
+        assert_eq!(map.insert("a", 2), Ok(Some(1)));
+        assert_eq!(unwrap(&map),       [Some(("a", 2)), None, None, None]);
+    }
+
+    #[test]
+    fn test_insert_full() {
+        let mut pairs = all_pairs_full();
+        let mut map = ManagedMap::Borrowed(&mut pairs);
+        assert_eq!(map.insert("q", 1), Err(("q", 1)));
+        assert_eq!(unwrap(&map),       all_pairs_full());
+    }
+
+    #[test]
+    fn test_insert_one() {
+        let mut pairs = one_pair_full();
+        let mut map = ManagedMap::Borrowed(&mut pairs);
+        assert_eq!(map.insert("b", 2), Ok(None));
+        assert_eq!(unwrap(&map),       [Some(("a", 1)), Some(("b", 2)), None, None]);
+    }
+
+    #[test]
+    fn test_insert_shift() {
+        let mut pairs = one_pair_full();
+        let mut map = ManagedMap::Borrowed(&mut pairs);
+        assert_eq!(map.insert("c", 3), Ok(None));
+        assert_eq!(map.insert("b", 2), Ok(None));
+        assert_eq!(unwrap(&map),       [Some(("a", 1)), Some(("b", 2)), Some(("c", 3)), None]);
+    }
+
+    #[test]
+    fn test_remove_nonexistent() {
+        let mut pairs = one_pair_full();
+        let mut map = ManagedMap::Borrowed(&mut pairs);
+        assert_eq!(map.remove("b"), None);
+    }
+
+    #[test]
+    fn test_remove_one() {
+        let mut pairs = all_pairs_full();
+        let mut map = ManagedMap::Borrowed(&mut pairs);
+        assert_eq!(map.remove("a"), Some(1));
+        assert_eq!(unwrap(&map),    [Some(("b", 2)), Some(("c", 3)), Some(("d", 4)), None]);
     }
 }
 
