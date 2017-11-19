@@ -17,3 +17,7 @@ alloc = []
 default = ["std"]
 # Unstable features
 map = []
+
+[profile.test]
+opt-level = 1
+codegen-units = 1
