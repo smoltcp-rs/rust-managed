@@ -101,11 +101,10 @@ pub enum ManagedSlice<'a, T: 'a> {
     Owned(Vec<T>)
 }
 
+// The implementation of ManagedMap is not yet stable, beware!
 pub enum ManagedMap<'a, K: Hash + 'a, V: 'a> {
-    /// Borrowed variant.
     Borrowed(&'a mut [(K, V)]),
-    /// Owned variant, only available with the `std` or `alloc` feature enabled.
-    #[cfg(any(feature = "std", feature = "alloc"))]
+    #[cfg(/* BTreeMap available */)]
     Owned(BTreeMap<K, V>)
 }
 ```
