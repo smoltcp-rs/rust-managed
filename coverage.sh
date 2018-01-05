@@ -1,6 +1,6 @@
 #!/bin/bash -e
 
-cargo rustc -- --test -C link-dead-code -Z profile -Z no-landing-pads
+cargo rustc --features map -- --test -C link-dead-code -Z profile -Z no-landing-pads
 
 LCOVOPTS=(
   --gcov-tool llvm-gcov
