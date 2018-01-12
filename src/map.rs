@@ -158,7 +158,7 @@ impl<'a, K: Ord + 'a, V: 'a> ManagedMap<'a, K, V> {
                         Err((key, new_value)), // full
                     Err(idx) => {
                         let rotate_by = pairs.len() - idx - 1;
-                        pairs[idx..].rotate(rotate_by);
+                        pairs[idx..].rotate_left(rotate_by);
                         assert!(pairs[idx].is_none(), "broken invariant");
                         pairs[idx] = Some((key, new_value));
                         Ok(None)
@@ -184,7 +184,7 @@ impl<'a, K: Ord + 'a, V: 'a> ManagedMap<'a, K, V> {
                 match binary_search_by_key(pairs, key) {
                     Ok(idx) => {
                         let (_key, value) = pairs[idx].take().expect("broken invariant");
-                        pairs[idx..].rotate(1);
+                        pairs[idx..].rotate_left(1);
                         Some(value)
                     }
                     Err(_) => None
