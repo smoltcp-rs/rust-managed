@@ -6,11 +6,11 @@ use core::borrow::Borrow;
 #[cfg(feature = "std")]
 use std::collections::BTreeMap;
 #[cfg(feature = "std")]
-use std::collections::btree_map::Iter as BTreeIter;
+use std::collections::btree_map::{Iter as BTreeIter, IterMut as BTreeIterMut};
 #[cfg(all(feature = "alloc", not(feature = "std")))]
 use alloc::btree_map::BTreeMap;
 #[cfg(all(feature = "alloc", not(feature = "std")))]
-use alloc::btree_map::Iter as BTreeIter;
+use alloc::btree_map::{Iter as BTreeIter, IterMut as BTreeIterMut};
 
 /// A managed map.
 ///
@@ -235,6 +235,25 @@ impl<'a, K: Ord + 'a, V: 'a> ManagedMap<'a, K, V> {
                 Iter::Owned(map.iter()),
         }
     }
+
+    pub fn iter_mut(&'a mut self) -> IterMut<'a, K, V> {
+        self.into_iter()
+    }
+}
+
+impl<'a, 'i: 'a, K: Ord + 'a, V: 'a> IntoIterator for &'i mut ManagedMap<'a, K, V> {
+    type Item = (&'i K, &'i mut V);
+    type IntoIter = IterMut<'i, K, V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        match self {
+            &mut ManagedMap::Borrowed(ref mut pairs) =>
+                IterMut::Borrowed(pairs.iter_mut()),
+            #[cfg(any(feature = "std", feature = "alloc"))]
+            &mut ManagedMap::Owned(ref mut map) =>
+                IterMut::Owned(map.iter_mut()),
+        }
+    }
 }
 
 pub enum Iter<'a, K: 'a, V: 'a> {
@@ -242,7 +261,7 @@ pub enum Iter<'a, K: 'a, V: 'a> {
     Borrowed(slice::Iter<'a, Option<(K, V)>>),
     /// Owned variant, only available with the `std` or `alloc` feature enabled.
     #[cfg(any(feature = "std", feature = "alloc"))]
-    Owned(BTreeIter<'a, K, V>)
+    Owned(BTreeIter<'a, K, V>),
 }
 
 impl<'a, K: Ord + 'a, V: 'a> Iterator for Iter<'a, K, V> {
@@ -272,6 +291,44 @@ impl<'a, K: Ord + 'a, V: 'a> Iterator for Iter<'a, K, V> {
             },
             #[cfg(any(feature = "std", feature = "alloc"))]
             &Iter::Owned(ref iter) =>
+                iter.size_hint(),
+        }
+    }
+}
+
+pub enum IterMut<'a, K: 'a, V: 'a> {
+    /// Borrowed variant.
+    Borrowed(slice::IterMut<'a, Option<(K, V)>>),
+    /// Owned variant, only available with the `std` or `alloc` feature enabled.
+    #[cfg(any(feature = "std", feature = "alloc"))]
+    Owned(BTreeIterMut<'a, K, V>),
+}
+
+impl<'a, K: Ord + 'a, V: 'a> Iterator for IterMut<'a, K, V> {
+    type Item = (&'a K, &'a mut V);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            &mut IterMut::Borrowed(ref mut iter) =>
+                match iter.next() {
+                    Some(&mut Some((ref k, ref mut v))) => Some((&k, v)),
+                    Some(&mut None) => None,
+                    None => None,
+                },
+            #[cfg(any(feature = "std", feature = "alloc"))]
+            &mut IterMut::Owned(ref mut iter) =>
+                iter.next(),
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match self {
+            &IterMut::Borrowed(ref iter) => {
+                let (_, upper) = iter.size_hint();
+                (0, upper)
+            },
+            #[cfg(any(feature = "std", feature = "alloc"))]
+            &IterMut::Owned(ref iter) =>
                 iter.size_hint(),
         }
     }
@@ -455,5 +512,28 @@ mod test {
         assert_eq!(iter.next(), Some((&"c", &3)));
         assert_eq!(iter.next(), Some((&"d", &4)));
         assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn test_iter_mut_full() {
+        let mut pairs = all_pairs_full();
+        let mut map = ManagedMap::Borrowed(&mut pairs);
+
+        {
+            let mut iter = map.iter_mut();
+            assert_eq!(iter.size_hint(), (0, Some(4)));
+            for (_k, mut v) in &mut iter {
+                *v += 1;
+            }
+            assert_eq!(iter.size_hint(), (0, Some(0)));
+        }
+        {
+            let mut iter = map.iter();
+            assert_eq!(iter.next(), Some((&"a", &2)));
+            assert_eq!(iter.next(), Some((&"b", &3)));
+            assert_eq!(iter.next(), Some((&"c", &4)));
+            assert_eq!(iter.next(), Some((&"d", &5)));
+            assert_eq!(iter.next(), None);
+        }
     }
 }
