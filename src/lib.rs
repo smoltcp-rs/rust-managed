@@ -18,4 +18,5 @@ mod map;
 pub use object::Managed;
 pub use slice::ManagedSlice;
 #[cfg(feature = "map")]
-pub use map::ManagedMap;
+pub use map::{ManagedMap,
+              Iter as ManagedMapIter};
