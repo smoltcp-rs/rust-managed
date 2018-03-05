@@ -224,9 +224,14 @@ impl<'a, K: Ord + 'a, V: 'a> ManagedMap<'a, K, V> {
         }
     }
 
-    /// Short-cut for `into_iter()`
     pub fn iter(&'a self) -> Iter<'a, K, V> {
-        self.into_iter()
+        match self {
+            &ManagedMap::Borrowed(ref pairs) =>
+                Iter::Borrowed(pairs.iter()),
+            #[cfg(any(feature = "std", feature = "alloc"))]
+            &ManagedMap::Owned(ref map) =>
+                Iter::Owned(map.iter()),
+        }
     }
 }
 
@@ -235,13 +240,7 @@ impl<'a, K: Ord + 'a, V: 'a> IntoIterator for &'a ManagedMap<'a, K, V> {
     type IntoIter = Iter<'a, K, V>;
 
     fn into_iter(self) -> Self::IntoIter {
-        match self {
-            &ManagedMap::Borrowed(ref pairs) =>
-                Iter::Borrowed(pairs.iter()),
-            #[cfg(any(feature = "std", feature = "alloc"))]
-            &ManagedMap::Owned(ref map) =>
-                Iter::Owned(map.iter()),
-        }
+        self.iter()
     }
 }
 
