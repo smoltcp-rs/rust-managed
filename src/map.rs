@@ -235,15 +235,6 @@ impl<'a, K: Ord + 'a, V: 'a> ManagedMap<'a, K, V> {
     }
 }
 
-impl<'a, K: Ord + 'a, V: 'a> IntoIterator for &'a ManagedMap<'a, K, V> {
-    type Item = (&'a K, &'a V);
-    type IntoIter = Iter<'a, K, V>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.iter()
-    }
-}
-
 pub enum Iter<'a, K: 'a, V: 'a> {
     /// Borrowed variant.
     Borrowed(slice::Iter<'a, Option<(K, V)>>),
