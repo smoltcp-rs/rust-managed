@@ -1,11 +1,16 @@
 use core::mem;
 use core::fmt;
+use core::slice;
 use core::borrow::Borrow;
 
 #[cfg(feature = "std")]
 use std::collections::BTreeMap;
+#[cfg(feature = "std")]
+use std::collections::btree_map::Iter as BTreeIter;
 #[cfg(all(feature = "alloc", not(feature = "std")))]
 use alloc::btree_map::BTreeMap;
+#[cfg(all(feature = "alloc", not(feature = "std")))]
+use alloc::btree_map::Iter as BTreeIter;
 
 /// A managed map.
 ///
@@ -194,6 +199,80 @@ impl<'a, K: Ord + 'a, V: 'a> ManagedMap<'a, K, V> {
             &mut ManagedMap::Owned(ref mut map) => map.remove(key)
         }
     }
+
+    /// ManagedMap contains no elements?
+    pub fn is_empty(&self) -> bool {
+        match self {
+            &ManagedMap::Borrowed(ref pairs) =>
+                pairs.iter().all(|item| item.is_none()),
+            #[cfg(any(feature = "std", feature = "alloc"))]
+            &ManagedMap::Owned(ref map) =>
+                map.is_empty()
+        }
+    }
+
+    /// Returns the number of elements in the ManagedMap.
+    pub fn len(&self) -> usize {
+        match self {
+            &ManagedMap::Borrowed(ref pairs) =>
+                pairs.iter()
+                .take_while(|item| item.is_some())
+                .count(),
+            #[cfg(any(feature = "std", feature = "alloc"))]
+            &ManagedMap::Owned(ref map) =>
+                map.len()
+        }
+    }
+
+    pub fn iter(&'a self) -> Iter<'a, K, V> {
+        match self {
+            &ManagedMap::Borrowed(ref pairs) =>
+                Iter::Borrowed(pairs.iter()),
+            #[cfg(any(feature = "std", feature = "alloc"))]
+            &ManagedMap::Owned(ref map) =>
+                Iter::Owned(map.iter()),
+        }
+    }
+}
+
+pub enum Iter<'a, K: 'a, V: 'a> {
+    /// Borrowed variant.
+    Borrowed(slice::Iter<'a, Option<(K, V)>>),
+    /// Owned variant, only available with the `std` or `alloc` feature enabled.
+    #[cfg(any(feature = "std", feature = "alloc"))]
+    Owned(BTreeIter<'a, K, V>)
+}
+
+impl<'a, K: Ord + 'a, V: 'a> Iterator for Iter<'a, K, V> {
+    type Item = (&'a K, &'a V);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            &mut Iter::Borrowed(ref mut iter) =>
+                match iter.next() {
+                    Some(&Some((ref k, ref v))) => Some((&k, &v)),
+                    Some(&None) => None,
+                    None => None,
+                },
+            #[cfg(any(feature = "std", feature = "alloc"))]
+            &mut Iter::Owned(ref mut iter) =>
+                iter.next(),
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match self {
+            &Iter::Borrowed(ref iter) => {
+                let len = iter.clone()
+                    .take_while(|item| item.is_some())
+                    .count();
+                (len, Some(len))
+            },
+            #[cfg(any(feature = "std", feature = "alloc"))]
+            &Iter::Owned(ref iter) =>
+                iter.size_hint(),
+        }
+    }
 }
 
 // LCOV_EXCL_START
@@ -225,6 +304,8 @@ mod test {
         let mut pairs = all_pairs_full();
         let mut map = ManagedMap::Borrowed(&mut pairs);
         map.clear();
+        assert!(map.is_empty());
+        assert_eq!(map.len(), 0);
         assert_eq!(unwrap(&map), all_pairs_empty());
     }
 
@@ -232,6 +313,7 @@ mod test {
     fn test_get_some() {
         let mut pairs = all_pairs_full();
         let map = ManagedMap::Borrowed(&mut pairs);
+        assert_eq!(map.len(), 4);
         assert_eq!(map.get("a"), Some(&1));
         assert_eq!(map.get("b"), Some(&2));
         assert_eq!(map.get("c"), Some(&3));
@@ -242,6 +324,8 @@ mod test {
     fn test_get_none() {
         let mut pairs = one_pair_full();
         let map = ManagedMap::Borrowed(&mut pairs);
+        assert_eq!(map.len(), 1);
+        assert!(!map.is_empty());
         assert_eq!(map.get("q"), None);
     }
 
@@ -249,6 +333,8 @@ mod test {
     fn test_get_mut_some() {
         let mut pairs = all_pairs_full();
         let mut map = ManagedMap::Borrowed(&mut pairs);
+        assert_eq!(map.len(), 4);
+        assert!(!map.is_empty());
         assert_eq!(map.get_mut("a"), Some(&mut 1));
         assert_eq!(map.get_mut("b"), Some(&mut 2));
         assert_eq!(map.get_mut("c"), Some(&mut 3));
@@ -266,7 +352,12 @@ mod test {
     fn test_insert_empty() {
         let mut pairs = all_pairs_empty();
         let mut map = ManagedMap::Borrowed(&mut pairs);
+        assert_eq!(map.len(), 0);
+        assert!(map.is_empty());
+
         assert_eq!(map.insert("a", 1), Ok(None));
+        assert_eq!(map.len(), 1);
+        assert!(!map.is_empty());
         assert_eq!(unwrap(&map),       [Some(("a", 1)), None, None, None]);
     }
 
@@ -276,6 +367,8 @@ mod test {
         let mut map = ManagedMap::Borrowed(&mut pairs);
         assert_eq!(map.insert("a", 1), Ok(None));
         assert_eq!(map.insert("a", 2), Ok(Some(1)));
+        assert_eq!(map.len(), 1);
+        assert!(!map.is_empty());
         assert_eq!(unwrap(&map),       [Some(("a", 2)), None, None, None]);
     }
 
@@ -284,6 +377,7 @@ mod test {
         let mut pairs = all_pairs_full();
         let mut map = ManagedMap::Borrowed(&mut pairs);
         assert_eq!(map.insert("q", 1), Err(("q", 1)));
+        assert_eq!(map.len(), 4);
         assert_eq!(unwrap(&map),       all_pairs_full());
     }
 
@@ -309,6 +403,7 @@ mod test {
         let mut pairs = one_pair_full();
         let mut map = ManagedMap::Borrowed(&mut pairs);
         assert_eq!(map.remove("b"), None);
+        assert_eq!(map.len(), 1);
     }
 
     #[test]
@@ -316,7 +411,40 @@ mod test {
         let mut pairs = all_pairs_full();
         let mut map = ManagedMap::Borrowed(&mut pairs);
         assert_eq!(map.remove("a"), Some(1));
+        assert_eq!(map.len(), 3);
         assert_eq!(unwrap(&map),    [Some(("b", 2)), Some(("c", 3)), Some(("d", 4)), None]);
     }
-}
 
+    #[test]
+    fn test_iter_none() {
+        let mut pairs = all_pairs_empty();
+        let map = ManagedMap::Borrowed(&mut pairs);
+        let mut iter = map.iter();
+        assert_eq!(iter.size_hint(), (0, Some(0)));
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn test_iter_one() {
+        let mut pairs = one_pair_full();
+        let map = ManagedMap::Borrowed(&mut pairs);
+        let mut iter = map.iter();
+        assert_eq!(iter.size_hint(), (1, Some(1)));
+        assert_eq!(iter.next(), Some((&"a", &1)));
+        assert_eq!(iter.size_hint(), (0, Some(0)));
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn test_iter_full() {
+        let mut pairs = all_pairs_full();
+        let map = ManagedMap::Borrowed(&mut pairs);
+        let mut iter = map.iter();
+        assert_eq!(iter.size_hint(), (4, Some(4)));
+        assert_eq!(iter.next(), Some((&"a", &1)));
+        assert_eq!(iter.next(), Some((&"b", &2)));
+        assert_eq!(iter.next(), Some((&"c", &3)));
+        assert_eq!(iter.next(), Some((&"d", &4)));
+        assert_eq!(iter.next(), None);
+    }
+}
