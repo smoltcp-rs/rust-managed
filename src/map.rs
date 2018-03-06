@@ -157,6 +157,8 @@ impl<'a, K: Ord + 'a, V: 'a> ManagedMap<'a, K, V> {
 
     pub fn insert(&mut self, key: K, new_value: V) -> Result<Option<V>, (K, V)> {
         match self {
+            &mut ManagedMap::Borrowed(ref mut pairs) if pairs.len() < 1 =>
+                Err((key, new_value)), // no space at all
             &mut ManagedMap::Borrowed(ref mut pairs) => {
                 match binary_search_by_key(pairs, &key) {
                     Err(_) if pairs[pairs.len() - 1].is_some() =>
@@ -396,6 +398,13 @@ mod test {
         assert_eq!(map.insert("c", 3), Ok(None));
         assert_eq!(map.insert("b", 2), Ok(None));
         assert_eq!(unwrap(&map),       [Some(("a", 1)), Some(("b", 2)), Some(("c", 3)), None]);
+    }
+
+    #[test]
+    fn test_insert_no_space() {
+        // Zero-sized backing store
+        let mut map = ManagedMap::Borrowed(&mut []);
+        assert_eq!(map.insert("a", 1), Err(("a", 1)));
     }
 
     #[test]
