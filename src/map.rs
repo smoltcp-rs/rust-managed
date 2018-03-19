@@ -226,7 +226,7 @@ impl<'a, K: Ord + 'a, V: 'a> ManagedMap<'a, K, V> {
         }
     }
 
-    pub fn iter(&'a self) -> Iter<'a, K, V> {
+    pub fn iter(&self) -> Iter<K, V> {
         match self {
             &ManagedMap::Borrowed(ref pairs) =>
                 Iter::Borrowed(pairs.iter()),
@@ -236,16 +236,7 @@ impl<'a, K: Ord + 'a, V: 'a> ManagedMap<'a, K, V> {
         }
     }
 
-    pub fn iter_mut(&'a mut self) -> IterMut<'a, K, V> {
-        self.into_iter()
-    }
-}
-
-impl<'a, 'i: 'a, K: Ord + 'a, V: 'a> IntoIterator for &'i mut ManagedMap<'a, K, V> {
-    type Item = (&'i K, &'i mut V);
-    type IntoIter = IterMut<'i, K, V>;
-
-    fn into_iter(self) -> Self::IntoIter {
+    pub fn iter_mut(&mut self) -> IterMut<K, V> {
         match self {
             &mut ManagedMap::Borrowed(ref mut pairs) =>
                 IterMut::Borrowed(pairs.iter_mut()),
@@ -526,6 +517,8 @@ mod test {
                 *v += 1;
             }
             assert_eq!(iter.size_hint(), (0, Some(0)));
+            // Scope for `iter` ends here so that it can be borrowed
+            // again with the following `iter`.
         }
         {
             let mut iter = map.iter();
