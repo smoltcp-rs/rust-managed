@@ -19,4 +19,5 @@ pub use object::Managed;
 pub use slice::ManagedSlice;
 #[cfg(feature = "map")]
 pub use map::{ManagedMap,
-              Iter as ManagedMapIter};
+              Iter as ManagedMapIter,
+              IterMut as ManagedMapIterMut};
