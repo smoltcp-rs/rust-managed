@@ -55,7 +55,7 @@ To use the _managed_ library in your project, add the following to `Cargo.toml`:
 
 ```toml
 [dependencies]
-managed = "0.1"
+managed = "0.6"
 ```
 
 The default configuration assumes a hosted environment, for ease of evaluation.
