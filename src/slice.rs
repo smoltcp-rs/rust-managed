@@ -18,7 +18,7 @@ use alloc::vec::Vec;
 ///
 /// The purpose of this enum is providing good ergonomics with `std` present while making
 /// it possible to avoid having a heap at all (which of course means that `std` is not present).
-/// To achieve this, the variants other than `Borrow` are only available when the corresponding
+/// To achieve this, the variants other than `Borrowed` are only available when the corresponding
 /// feature is opted in.
 ///
 /// A function that requires a managed object should be generic over an `Into<ManagedSlice<'a, T>>`
