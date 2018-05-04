@@ -103,7 +103,7 @@ pub enum ManagedSlice<'a, T: 'a> {
 
 // The implementation of ManagedMap is not yet stable, beware!
 pub enum ManagedMap<'a, K: Hash + 'a, V: 'a> {
-    Borrowed(&'a mut [(K, V)]),
+    Borrowed(&'a mut [Option<(K, V)>]),
     #[cfg(/* BTreeMap available */)]
     Owned(BTreeMap<K, V>)
 }
