@@ -2,15 +2,19 @@ use core::mem;
 use core::fmt;
 use core::slice;
 use core::borrow::Borrow;
+#[cfg(all(feature = "alloc", not(feature = "std")))]
+use core::ops::Bound::{Included,Excluded};
 
 #[cfg(feature = "std")]
 use std::collections::BTreeMap;
 #[cfg(feature = "std")]
-use std::collections::btree_map::{Iter as BTreeIter, IterMut as BTreeIterMut};
+use std::collections::btree_map::{Iter as BTreeIter, IterMut as BTreeIterMut, Range as BTreeRange};
+#[cfg(feature = "std")]
+use std::collections::Bound::{Included, Excluded};
 #[cfg(all(feature = "alloc", not(feature = "std")))]
 use alloc::btree_map::BTreeMap;
 #[cfg(all(feature = "alloc", not(feature = "std")))]
-use alloc::btree_map::{Iter as BTreeIter, IterMut as BTreeIterMut};
+use alloc::btree_map::{Iter as BTreeIter, IterMut as BTreeIterMut, Range as BTreeRange};
 
 /// A managed map.
 ///
@@ -90,6 +94,91 @@ impl<T> Into<Option<T>> for RevOption<T> {
     }
 }
 
+pub enum Range<'a, K: 'a, V: 'a> {
+    /// Borrowed variant.
+    Borrowed(&'a [Option<(K, V)>], usize),
+    /// Owned variant, only available with the `std` or `alloc` feature enabled.
+    #[cfg(any(feature = "std", feature = "alloc"))]
+    Owned(BTreeRange<'a, K, V>),
+}
+
+impl<'a, K: 'a, V: 'a> Iterator for Range<'a, K, V> {
+    type Item = (&'a K, &'a V);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match *self {
+            Range::Borrowed(ref slice, ref mut index) => {
+                *index += 1;
+                if *index-1 >= slice.len() {
+                    None
+                } else {
+                    match slice[*index-1] {
+                        None => None,
+                        Some((ref k, ref v)) => Some((k, v))
+                    }
+                }
+            },
+            #[cfg(any(feature = "std", feature = "alloc"))]
+            Range::Owned(ref mut range) => range.next(),
+        }
+    }
+}
+
+fn binary_search_by_key_range<K, V, Q>(slice: &[Option<(K, V)>], key_begin: &Q, key_end: &Q) -> Result<(usize, usize), ()>
+    where K: Ord + Borrow<Q>, Q: Ord + ?Sized
+{
+    if slice.len() == 0 {
+        return Err(())
+    }
+    let (mut left, mut right) = (0, slice.len()-1);
+
+    macro_rules! key {
+        ( $e:expr) => { $e.as_ref().map(|&(ref key, _)| key.borrow()) }
+    }
+
+    // We cannot use slice.binary_search_by_key instead of each of the
+    // two loops here, because we need the left-most match (for begin) and
+    // the right-most match (for end), and the stdlib does not provide
+    // any of these guarantees.
+
+    // Find the beginning
+    while left < right {
+        let middle = left + (right-left)/2;
+        if key!(slice[middle]) < Some(key_begin) {
+            left = middle+1;
+        } else if middle > 0 && key!(slice[middle-1]) >= Some(key_begin) {
+            right = middle-1;
+        } else {
+            left = middle;
+            break;
+        }
+    }
+    let begin = left;
+    if key!(slice[begin]) < Some(key_begin) {
+        return Err(())
+    }
+
+    // Find the ending
+    right = slice.len(); // no need to reset left
+    while left < right {
+        let middle = left + (right-left+1)/2;
+        if key!(slice[middle-1]) >= Some(key_end) {
+            right = middle-1;
+        } else if middle < slice.len() && key!(slice[middle]) < Some(key_end) {
+            left = middle+1;
+        } else {
+            right = middle;
+            break;
+        }
+    }
+    let end = right;
+    if end == 0 || key!(slice[end-1]) > Some(key_end) {
+        return Err(())
+    }
+
+    Ok((begin, end))
+}
+
 fn binary_search_by_key<K, V, Q>(slice: &[Option<(K, V)>], key: &Q) -> Result<usize, usize>
     where K: Ord + Borrow<Q>, Q: Ord + ?Sized
 {
@@ -152,6 +241,23 @@ impl<'a, K: Ord + 'a, V: 'a> ManagedMap<'a, K, V> {
             },
             #[cfg(any(feature = "std", feature = "alloc"))]
             &mut ManagedMap::Owned(ref mut map) => map.get_mut(key)
+        }
+    }
+
+    pub fn range<'b, Q>(&'b self, key_begin: &Q, key_end: &Q) -> Range<'a, K, V>
+            where K: Borrow<Q>, Q: Ord + ?Sized, 'b: 'a
+    {
+        match self {
+            &ManagedMap::Borrowed(ref pairs) => {
+                match binary_search_by_key_range(&pairs[0..self.len()], key_begin, key_end) {
+                    Ok((begin, end)) => Range::Borrowed(&pairs[begin..end], 0),
+                    Err(()) => Range::Borrowed(&[], 0),
+                }
+            },
+            #[cfg(any(feature = "std", feature = "alloc"))]
+            &ManagedMap::Owned(ref map) => {
+                Range::Owned(map.range((Included(key_begin), Excluded(key_end))))
+            },
         }
     }
 
@@ -377,6 +483,164 @@ mod test {
         assert_eq!(map.len(), 1);
         assert!(!map.is_empty());
         assert_eq!(map.get("q"), None);
+    }
+
+    #[test]
+    fn test_get_none_empty() {
+        let mut pairs = all_pairs_empty();
+        let map = ManagedMap::Borrowed(&mut pairs);
+        assert_eq!(map.len(), 0);
+        assert!(map.is_empty());
+        assert_eq!(map.get("q"), None);
+    }
+
+    #[test]
+    fn test_range_full() {
+        let mut pairs = all_pairs_full();
+        let map = ManagedMap::Borrowed(&mut pairs);
+        assert_eq!(map.len(), 4);
+
+        let mut range = map.range("0", "a");
+        assert_eq!(range.next(), None);
+        let mut range = map.range("0", "b");
+        assert_eq!(range.next(), Some((&"a", &1)));
+        assert_eq!(range.next(), None);
+        let mut range = map.range("0", "c");
+        assert_eq!(range.next(), Some((&"a", &1)));
+        assert_eq!(range.next(), Some((&"b", &2)));
+        assert_eq!(range.next(), None);
+        let mut range = map.range("0", "d");
+        assert_eq!(range.next(), Some((&"a", &1)));
+        assert_eq!(range.next(), Some((&"b", &2)));
+        assert_eq!(range.next(), Some((&"c", &3)));
+        assert_eq!(range.next(), None);
+        let mut range = map.range("0", "e");
+        assert_eq!(range.next(), Some((&"a", &1)));
+        assert_eq!(range.next(), Some((&"b", &2)));
+        assert_eq!(range.next(), Some((&"c", &3)));
+        assert_eq!(range.next(), Some((&"d", &4)));
+        assert_eq!(range.next(), None);
+
+        let mut range = map.range("a", "a");
+        assert_eq!(range.next(), None);
+        let mut range = map.range("a", "b");
+        assert_eq!(range.next(), Some((&"a", &1)));
+        assert_eq!(range.next(), None);
+        let mut range = map.range("a", "c");
+        assert_eq!(range.next(), Some((&"a", &1)));
+        assert_eq!(range.next(), Some((&"b", &2)));
+        assert_eq!(range.next(), None);
+        let mut range = map.range("a", "d");
+        assert_eq!(range.next(), Some((&"a", &1)));
+        assert_eq!(range.next(), Some((&"b", &2)));
+        assert_eq!(range.next(), Some((&"c", &3)));
+        assert_eq!(range.next(), None);
+        let mut range = map.range("a", "e");
+        assert_eq!(range.next(), Some((&"a", &1)));
+        assert_eq!(range.next(), Some((&"b", &2)));
+        assert_eq!(range.next(), Some((&"c", &3)));
+        assert_eq!(range.next(), Some((&"d", &4)));
+        assert_eq!(range.next(), None);
+
+        let mut range = map.range("b", "a");
+        assert_eq!(range.next(), None);
+        let mut range = map.range("b", "b");
+        assert_eq!(range.next(), None);
+        let mut range = map.range("b", "c");
+        assert_eq!(range.next(), Some((&"b", &2)));
+        assert_eq!(range.next(), None);
+        let mut range = map.range("b", "d");
+        assert_eq!(range.next(), Some((&"b", &2)));
+        assert_eq!(range.next(), Some((&"c", &3)));
+        assert_eq!(range.next(), None);
+        let mut range = map.range("b", "e");
+        assert_eq!(range.next(), Some((&"b", &2)));
+        assert_eq!(range.next(), Some((&"c", &3)));
+        assert_eq!(range.next(), Some((&"d", &4)));
+        assert_eq!(range.next(), None);
+
+        let mut range = map.range("c", "a");
+        assert_eq!(range.next(), None);
+        let mut range = map.range("c", "b");
+        assert_eq!(range.next(), None);
+        let mut range = map.range("c", "c");
+        assert_eq!(range.next(), None);
+        let mut range = map.range("c", "d");
+        assert_eq!(range.next(), Some((&"c", &3)));
+        assert_eq!(range.next(), None);
+        let mut range = map.range("c", "e");
+        assert_eq!(range.next(), Some((&"c", &3)));
+        assert_eq!(range.next(), Some((&"d", &4)));
+        assert_eq!(range.next(), None);
+
+        let mut range = map.range("d", "a");
+        assert_eq!(range.next(), None);
+        let mut range = map.range("d", "b");
+        assert_eq!(range.next(), None);
+        let mut range = map.range("d", "c");
+        assert_eq!(range.next(), None);
+        let mut range = map.range("d", "d");
+        assert_eq!(range.next(), None);
+        let mut range = map.range("d", "e");
+        assert_eq!(range.next(), Some((&"d", &4)));
+        assert_eq!(range.next(), None);
+
+        let mut range = map.range("e", "a");
+        assert_eq!(range.next(), None);
+        let mut range = map.range("e", "b");
+        assert_eq!(range.next(), None);
+        let mut range = map.range("e", "c");
+        assert_eq!(range.next(), None);
+        let mut range = map.range("e", "d");
+        assert_eq!(range.next(), None);
+        let mut range = map.range("e", "e");
+        assert_eq!(range.next(), None);
+    }
+
+    #[test]
+    fn test_range_one_pair() {
+        let mut pairs = one_pair_full();
+        let map = ManagedMap::Borrowed(&mut pairs);
+        assert_eq!(map.len(), 1);
+
+        let mut range = map.range("0", "a");
+        assert_eq!(range.next(), None);
+        let mut range = map.range("0", "b");
+        assert_eq!(range.next(), Some((&"a", &1)));
+        assert_eq!(range.next(), None);
+        let mut range = map.range("0", "c");
+        assert_eq!(range.next(), Some((&"a", &1)));
+        assert_eq!(range.next(), None);
+
+        let mut range = map.range("a", "a");
+        assert_eq!(range.next(), None);
+        let mut range = map.range("a", "b");
+        assert_eq!(range.next(), Some((&"a", &1)));
+        assert_eq!(range.next(), None);
+        let mut range = map.range("a", "c");
+        assert_eq!(range.next(), Some((&"a", &1)));
+        assert_eq!(range.next(), None);
+
+        let mut range = map.range("b", "a");
+        assert_eq!(range.next(), None);
+        let mut range = map.range("b", "b");
+        assert_eq!(range.next(), None);
+        let mut range = map.range("b", "c");
+        assert_eq!(range.next(), None);
+    }
+
+    #[test]
+    fn test_range_empty() {
+        let mut pairs = all_pairs_empty();
+        let map = ManagedMap::Borrowed(&mut pairs);
+        assert_eq!(map.len(), 0);
+
+        let mut range = map.range("b", "a");
+        assert_eq!(range.next(), None);
+        let mut range = map.range("b", "b");
+        assert_eq!(range.next(), None);
+        let mut range = map.range("b", "c");
+        assert_eq!(range.next(), None);
     }
 
     #[test]
