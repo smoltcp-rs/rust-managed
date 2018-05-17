@@ -371,11 +371,30 @@ mod test {
     }
 
     #[test]
+    fn test_get_some_one_pair() {
+        let mut pairs = one_pair_full();
+        let map = ManagedMap::Borrowed(&mut pairs);
+        assert_eq!(map.len(), 1);
+        assert_eq!(map.get("a"), Some(&1));
+    }
+
+    #[test]
+    fn test_get_none_full() {
+        let mut pairs = all_pairs_full();
+        let map = ManagedMap::Borrowed(&mut pairs);
+        assert_eq!(map.len(), 4);
+        assert!(!map.is_empty());
+        assert_eq!(map.get("q"), None);
+        assert_eq!(map.get("0"), None);
+    }
+
+    #[test]
     fn test_get_none() {
         let mut pairs = one_pair_full();
         let map = ManagedMap::Borrowed(&mut pairs);
         assert_eq!(map.len(), 1);
         assert!(!map.is_empty());
+        assert_eq!(map.get("0"), None);
         assert_eq!(map.get("q"), None);
     }
 
