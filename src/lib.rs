@@ -1,6 +1,7 @@
 #![no_std]
 #![cfg_attr(all(feature = "alloc", not(feature = "std")), feature(alloc))]
 #![cfg_attr(feature = "map", feature(slice_rotate))]
+#![cfg_attr(feature = "map", feature(collections_range))]
 
 //! A library that provides a way to logically own objects, whether or not
 //! heap allocation is available.
