@@ -127,7 +127,7 @@ fn binary_search_by_key_range<'a, K, V, Q: 'a, R>(slice: &[Option<(K, V)>], rang
     if slice.len() == 0 {
         return Err(())
     }
-    let (mut left, mut right) = (0, slice.len()-1);
+    let (mut left, mut right) = (0, slice.len() - 1);
 
     macro_rules! key {
         ( $e:expr) => { $e.as_ref().map(|&(ref key, _)| key.borrow()) }
@@ -139,64 +139,66 @@ fn binary_search_by_key_range<'a, K, V, Q: 'a, R>(slice: &[Option<(K, V)>], rang
     // any of these guarantees.
 
     // Find the beginning
-    let begin = if let Bound::Unbounded = range.start() {
-        0
+    let begin;
+    if let Bound::Unbounded = range.start() {
+        begin = 0;
     } else {
         macro_rules! is_before_range {
             ( $item: expr) => {
                 match &range.start() {
                     Bound::Included(ref key_begin) => $item < Some(key_begin.borrow()),
                     Bound::Excluded(ref key_begin) => $item <= Some(key_begin.borrow()),
-                    Bound::Unbounded => unreachable!(),
+                    Bound::Unbounded => unreachable!()
                 }
             }
         };
         while left < right {
-            let middle = left + (right-left)/2;
+            let middle = left + (right - left) / 2;
             if is_before_range!(key!(slice[middle])) {
-                left = middle+1;
-            } else if middle > 0 && !is_before_range!(key!(slice[middle-1])) {
-                right = middle-1;
+                left = middle + 1;
+            } else if middle > 0 && !is_before_range!(key!(slice[middle - 1])) {
+                right = middle - 1;
             } else {
                 left = middle;
-                break;
+                break
             }
         }
         if left == slice.len() || is_before_range!(key!(slice[left])) {
             return Err(())
         }
-        left
+        begin = left
     };
 
     // Find the ending
-    let end = if let Bound::Unbounded = range.end() {
-        slice.len()
+    let end;
+    if let Bound::Unbounded = range.end() {
+        end = slice.len()
     } else {
         macro_rules! is_after_range {
             ( $item:expr ) => {
                 match &range.end() {
                     Bound::Included(ref key_end) => $item > Some(key_end.borrow()),
                     Bound::Excluded(ref key_end) => $item >= Some(key_end.borrow()),
-                    Bound::Unbounded => unreachable!(),
+                    Bound::Unbounded => unreachable!()
                 }
             }
         };
         right = slice.len(); // no need to reset left
         while left < right {
-            let middle = left + (right-left+1)/2;
-            if is_after_range!(key!(slice[middle-1])) {
-                right = middle-1;
+            let middle = left + (right - left + 1) / 2;
+            if is_after_range!(key!(slice[middle - 1])) {
+                right = middle - 1;
             } else if middle < slice.len() && !is_after_range!(key!(slice[middle])) {
-                left = middle+1;
+                left = middle + 1;
             } else {
                 right = middle;
-                break;
+                break
             }
         }
-        if right == 0 || is_after_range!(key!(slice[right-1])) {
+        if right == 0 || is_after_range!(key!(slice[right - 1])) {
             return Err(())
         }
-        right
+        end = right
     };
 
     Ok((begin, end))
