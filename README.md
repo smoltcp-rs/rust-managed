@@ -80,7 +80,7 @@ on the `alloc` crate. This only works on nightly rustc.
 
 The `map` feature, disabled by default, enables the `ManagedMap` enum.
 Its interface is not stable yet and is subject to change.
-It also requires the use of a nightly compiler.
+It also requires the use of a nightly compiler, 1.27 or later.
 
 Usage
 -----
