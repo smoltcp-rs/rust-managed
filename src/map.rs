@@ -91,32 +91,56 @@ impl<T> Into<Option<T>> for RevOption<T> {
     }
 }
 
-pub enum Range<'a, K: 'a, V: 'a> {
+#[derive(Debug, Clone)]
+enum RangeInner<'a, K: 'a, V: 'a> {
     /// Borrowed variant.
-    Borrowed(&'a [Option<(K, V)>], usize),
+    Borrowed { slice: &'a [Option<(K, V)>], begin: usize, end: usize },
     /// Owned variant, only available with the `std` or `alloc` feature enabled.
     #[cfg(any(feature = "std", feature = "alloc"))]
     Owned(BTreeRange<'a, K, V>),
 }
 
+#[derive(Debug, Clone)]
+pub struct Range<'a, K: 'a, V: 'a>(RangeInner<'a, K, V>);
+
 impl<'a, K: 'a, V: 'a> Iterator for Range<'a, K, V> {
     type Item = (&'a K, &'a V);
 
     fn next(&mut self) -> Option<Self::Item> {
-        match *self {
-            Range::Borrowed(ref slice, ref mut index) => {
-                *index += 1;
-                if *index-1 >= slice.len() {
+        match self.0 {
+            RangeInner::Borrowed { ref slice, ref mut begin, ref end } => {
+                *begin += 1;
+                if *begin-1 >= *end {
                     None
                 } else {
-                    match slice[*index-1] {
+                    match slice[*begin-1] {
                         None => None,
                         Some((ref k, ref v)) => Some((k, v))
                     }
                 }
             },
             #[cfg(any(feature = "std", feature = "alloc"))]
-            Range::Owned(ref mut range) => range.next(),
+            RangeInner::Owned(ref mut range) => range.next(),
+        }
+    }
+}
+
+impl<'a, K: 'a, V: 'a> DoubleEndedIterator for Range<'a, K, V> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        match self.0 {
+            RangeInner::Borrowed { ref slice, ref begin, ref mut end } => {
+                if *begin >= *end {
+                    None
+                } else {
+                    *end -= 1;
+                    match slice[*end] {
+                        None => None,
+                        Some((ref k, ref v)) => Some((k, v))
+                    }
+                }
+            },
+            #[cfg(any(feature = "std", feature = "alloc"))]
+            RangeInner::Owned(ref mut range) => range.next_back(),
         }
     }
 }
@@ -275,13 +299,15 @@ impl<'a, K: Ord + 'a, V: 'a> ManagedMap<'a, K, V> {
         match self {
             &ManagedMap::Borrowed(ref pairs) => {
                 match binary_search_by_key_range(&pairs[0..self.len()], range) {
-                    Ok((begin, end)) => Range::Borrowed(&pairs[begin..end], 0),
-                    Err(()) => Range::Borrowed(&[], 0),
+                    Ok((begin, end)) => Range(RangeInner::Borrowed {
+                        slice: &pairs[begin..end], begin: 0, end: end-begin }),
+                    Err(()) => Range(RangeInner::Borrowed {
+                        slice: &[], begin: 0, end: 0 }),
                 }
             },
             #[cfg(any(feature = "std", feature = "alloc"))]
             &ManagedMap::Owned(ref map) => {
-                Range::Owned(map.range(range))
+                Range(RangeInner::Owned(map.range(range)))
             },
         }
     }
@@ -551,16 +577,27 @@ mod test {
         assert_eq!(range.next(), Some((&"c", &3)));
         assert_eq!(range.next(), Some((&"d", &4)));
         assert_eq!(range.next(), None);
+        assert_eq!(range.next_back(), None);
+
+        let mut range = map.range("a"..);
+        assert_eq!(range.next(), Some((&"a", &1)));
+        assert_eq!(range.next_back(), Some((&"d", &4)));
+        assert_eq!(range.next_back(), Some((&"c", &3)));
+        assert_eq!(range.next(), Some((&"b", &2)));
+        assert_eq!(range.next_back(), None);
+        assert_eq!(range.next(), None);
 
         let mut range = map.range("b"..);
         assert_eq!(range.next(), Some((&"b", &2)));
         assert_eq!(range.next(), Some((&"c", &3)));
         assert_eq!(range.next(), Some((&"d", &4)));
         assert_eq!(range.next(), None);
+        assert_eq!(range.next_back(), None);
 
         let mut range = map.range("d"..);
         assert_eq!(range.next(), Some((&"d", &4)));
         assert_eq!(range.next(), None);
+        assert_eq!(range.next_back(), None);
 
         let mut range = map.range(.."e");
         assert_eq!(range.next(), Some((&"a", &1)));
@@ -568,19 +605,23 @@ mod test {
         assert_eq!(range.next(), Some((&"c", &3)));
         assert_eq!(range.next(), Some((&"d", &4)));
         assert_eq!(range.next(), None);
+        assert_eq!(range.next_back(), None);
 
         let mut range = map.range(.."d");
         assert_eq!(range.next(), Some((&"a", &1)));
         assert_eq!(range.next(), Some((&"b", &2)));
         assert_eq!(range.next(), Some((&"c", &3)));
         assert_eq!(range.next(), None);
+        assert_eq!(range.next_back(), None);
 
         let mut range = map.range(.."b");
         assert_eq!(range.next(), Some((&"a", &1)));
         assert_eq!(range.next(), None);
+        assert_eq!(range.next_back(), None);
 
         let mut range = map.range(.."a");
         assert_eq!(range.next(), None);
+        assert_eq!(range.next_back(), None);
 
         let mut range = map.range::<&str, _>(..);
         assert_eq!(range.next(), Some((&"a", &1)));
@@ -588,6 +629,7 @@ mod test {
         assert_eq!(range.next(), Some((&"c", &3)));
         assert_eq!(range.next(), Some((&"d", &4)));
         assert_eq!(range.next(), None);
+        assert_eq!(range.next_back(), None);
     }
 
     #[test]
@@ -639,6 +681,26 @@ mod test {
         assert_eq!(range.next(), Some((&"c", &3)));
         assert_eq!(range.next(), Some((&"d", &4)));
         assert_eq!(range.next(), None);
+
+        let mut range = map.range::<&str, _>((Included("b"), Included("a")));
+        assert_eq!(range.next_back(), None);
+        let mut range = map.range::<&str, _>((Included("b"), Included("b")));
+        assert_eq!(range.next_back(), Some((&"b", &2)));
+        assert_eq!(range.next_back(), None);
+        let mut range = map.range::<&str, _>((Included("b"), Included("c")));
+        assert_eq!(range.next_back(), Some((&"c", &3)));
+        assert_eq!(range.next_back(), Some((&"b", &2)));
+        assert_eq!(range.next_back(), None);
+        let mut range = map.range::<&str, _>((Included("b"), Included("d")));
+        assert_eq!(range.next_back(), Some((&"d", &4)));
+        assert_eq!(range.next_back(), Some((&"c", &3)));
+        assert_eq!(range.next_back(), Some((&"b", &2)));
+        assert_eq!(range.next_back(), None);
+        let mut range = map.range::<&str, _>((Included("b"), Included("e")));
+        assert_eq!(range.next_back(), Some((&"d", &4)));
+        assert_eq!(range.next_back(), Some((&"c", &3)));
+        assert_eq!(range.next_back(), Some((&"b", &2)));
+        assert_eq!(range.next_back(), None);
     }
 
     #[test]
