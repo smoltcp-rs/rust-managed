@@ -1,6 +1,6 @@
 [package]
 name = "managed"
-version = "0.6.1"
+version = "0.7.0"
 authors = ["whitequark <whitequark@whitequark.org>"]
 description = "An interface for logically owning objects, whether or not heap allocation is available."
 documentation = "https://docs.rs/managed/"
