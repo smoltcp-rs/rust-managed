@@ -2,7 +2,7 @@ Managed
 =======
 
 _managed_ is a library that provides a way to logically own objects, whether or not
-heap allocation is available.
+heap allocation is available. It works with rustc 1.26 or later.
 
 Motivation
 ----------
@@ -74,13 +74,13 @@ on the `std` crate.
 ### Feature `alloc`
 
 The `alloc` feature enables use of `Box`, `Vec`, and `BTreeMap` through a dependency
-on the `alloc` crate. This only works on nightly rustc.
+on the `alloc` crate. It requires the use of nightly rustc.
 
 ### Feature `map`
 
 The `map` feature, disabled by default, enables the `ManagedMap` enum.
 Its interface is not stable yet and is subject to change.
-It also requires the use of a nightly compiler, 1.27 or later.
+It also requires the use of rustc 1.28 or later.
 
 Usage
 -----

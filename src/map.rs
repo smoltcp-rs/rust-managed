@@ -164,12 +164,12 @@ fn binary_search_by_key_range<'a, K, V, Q: 'a, R>(slice: &[Option<(K, V)>], rang
 
     // Find the beginning
     let begin;
-    if let Bound::Unbounded = range.start() {
+    if let Bound::Unbounded = range.start_bound() {
         begin = 0;
     } else {
         macro_rules! is_before_range {
             ( $item: expr) => {
-                match &range.start() {
+                match &range.start_bound() {
                     Bound::Included(ref key_begin) => $item < Some(key_begin.borrow()),
                     Bound::Excluded(ref key_begin) => $item <= Some(key_begin.borrow()),
                     Bound::Unbounded => unreachable!()
@@ -195,12 +195,12 @@ fn binary_search_by_key_range<'a, K, V, Q: 'a, R>(slice: &[Option<(K, V)>], rang
 
     // Find the ending
     let end;
-    if let Bound::Unbounded = range.end() {
+    if let Bound::Unbounded = range.end_bound() {
         end = slice.len()
     } else {
         macro_rules! is_after_range {
             ( $item:expr ) => {
-                match &range.end() {
+                match &range.end_bound() {
                     Bound::Included(ref key_end) => $item > Some(key_end.borrow()),
                     Bound::Excluded(ref key_end) => $item >= Some(key_end.borrow()),
                     Bound::Unbounded => unreachable!()
