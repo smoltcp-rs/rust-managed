@@ -7,11 +7,13 @@ use core::ops::{Bound, RangeBounds};
 #[cfg(feature = "std")]
 use std::collections::BTreeMap;
 #[cfg(feature = "std")]
-use std::collections::btree_map::{Iter as BTreeIter, IterMut as BTreeIterMut, Range as BTreeRange};
+use std::collections::btree_map::{Iter as BTreeIter, IterMut as BTreeIterMut,
+                                  Range as BTreeRange};
 #[cfg(all(feature = "alloc", not(feature = "std")))]
-use alloc::btree_map::BTreeMap;
+use alloc::collections::btree_map::BTreeMap;
 #[cfg(all(feature = "alloc", not(feature = "std")))]
-use alloc::btree_map::{Iter as BTreeIter, IterMut as BTreeIterMut, Range as BTreeRange};
+use alloc::collections::btree_map::{Iter as BTreeIter, IterMut as BTreeIterMut,
+                                    Range as BTreeRange};
 
 /// A managed map.
 ///
