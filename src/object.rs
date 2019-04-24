@@ -25,7 +25,7 @@ use alloc::vec::Vec;
 /// argument; then, it will be possible to pass either a `Box<T>`, `Vec<T>`, or a `&'a mut T`
 /// without any conversion at the call site.
 ///
-/// Note that a `Vec<T>` converted into an `Into<Managed<'static, [T]>>` gets transformed
+/// Note that a `Vec<T>` converted into an `Into<Managed<'a, [T]>>` gets transformed
 /// into a boxed slice, and can no longer be resized. See also
 /// [ManagedSlice](enum.ManagedSlice.html), which does not have this drawback.
 pub enum Managed<'a, T: 'a + ?Sized> {
@@ -54,14 +54,14 @@ impl<'a, T: 'a + ?Sized> From<&'a mut T> for Managed<'a, T> {
 }
 
 #[cfg(any(feature = "std", feature = "alloc"))]
-impl<T: ?Sized + 'static> From<Box<T>> for Managed<'static, T> {
+impl<'a, T: ?Sized + 'a> From<Box<T>> for Managed<'a, T> {
     fn from(value: Box<T>) -> Self {
         Managed::Owned(value)
     }
 }
 
 #[cfg(any(feature = "std", feature = "alloc"))]
-impl<T: 'static> From<Vec<T>> for Managed<'static, [T]> {
+impl<'a, T: 'a> From<Vec<T>> for Managed<'a, [T]> {
     fn from(value: Vec<T>) -> Self {
         Managed::Owned(value.into_boxed_slice())
     }
