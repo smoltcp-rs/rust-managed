@@ -11,11 +11,17 @@ extern crate alloc;
 
 mod object;
 mod slice;
+mod slotmap;
 #[cfg(feature = "map")]
 mod map;
 
 pub use object::Managed;
 pub use slice::ManagedSlice;
+pub use slotmap::{
+    Key as SlotKey,
+    Slot as SlotIndex,
+    SlotMap,
+};
 #[cfg(feature = "map")]
 pub use map::{ManagedMap,
               Iter as ManagedMapIter,
