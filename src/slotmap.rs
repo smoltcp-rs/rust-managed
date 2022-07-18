@@ -180,9 +180,7 @@ impl<T> SlotMap<'_, T> {
     /// swap it with a logically empty value. Returns `None` if the provided index did not refer to
     /// an element that could be freed.
     pub fn remove(&mut self, index: Key) -> Option<&mut T> {
-        if self.get(index).is_none() {
-            return None
-        }
+        self.get(index)?;
 
         // The slot can be freed.
         let free = FreeIndex(index.idx);
