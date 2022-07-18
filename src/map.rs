@@ -110,9 +110,9 @@ impl<'a, K: 'a, V: 'a> Iterator for Range<'a, K, V> {
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.0 {
-            RangeInner::Borrowed { ref slice, ref mut begin, ref end } => {
+            RangeInner::Borrowed { slice, ref mut begin, ref end } => {
                 *begin += 1;
-                if *begin-1 >= *end {
+                if *begin > *end {
                     None
                 } else {
                     match slice[*begin-1] {
@@ -130,7 +130,7 @@ impl<'a, K: 'a, V: 'a> Iterator for Range<'a, K, V> {
 impl<'a, K: 'a, V: 'a> DoubleEndedIterator for Range<'a, K, V> {
     fn next_back(&mut self) -> Option<Self::Item> {
         match self.0 {
-            RangeInner::Borrowed { ref slice, ref begin, ref mut end } => {
+            RangeInner::Borrowed { slice, ref begin, ref mut end } => {
                 if *begin >= *end {
                     None
                 } else {
@@ -150,7 +150,7 @@ impl<'a, K: 'a, V: 'a> DoubleEndedIterator for Range<'a, K, V> {
 fn binary_search_by_key_range<'a, K, V, Q: 'a, R>(slice: &[Option<(K, V)>], range: R) -> Result<(usize, usize), ()>
     where K: Ord + Borrow<Q>, Q: Ord + ?Sized, R: RangeBounds<Q>
 {
-    if slice.len() == 0 {
+    if slice.is_empty() {
         return Err(())
     }
     let (mut left, mut right) = (0, slice.len() - 1);
@@ -316,7 +316,7 @@ impl<'a, K: Ord + 'a, V: 'a> ManagedMap<'a, K, V> {
 
     pub fn insert(&mut self, key: K, new_value: V) -> Result<Option<V>, (K, V)> {
         match self {
-            &mut ManagedMap::Borrowed(ref mut pairs) if pairs.len() < 1 =>
+            &mut ManagedMap::Borrowed(ref mut pairs) if pairs.is_empty() =>
                 Err((key, new_value)), // no space at all
             &mut ManagedMap::Borrowed(ref mut pairs) => {
                 match binary_search_by_key(pairs, &key) {
@@ -421,7 +421,7 @@ impl<'a, K: Ord + 'a, V: 'a> Iterator for Iter<'a, K, V> {
         match self {
             &mut Iter::Borrowed(ref mut iter) =>
                 match iter.next() {
-                    Some(&Some((ref k, ref v))) => Some((&k, &v)),
+                    Some(&Some((ref k, ref v))) => Some((k, v)),
                     Some(&None) => None,
                     None => None,
                 },
@@ -461,7 +461,7 @@ impl<'a, K: Ord + 'a, V: 'a> Iterator for IterMut<'a, K, V> {
         match self {
             &mut IterMut::Borrowed(ref mut iter) =>
                 match iter.next() {
-                    Some(&mut Some((ref k, ref mut v))) => Some((&k, v)),
+                    Some(&mut Some((ref k, ref mut v))) => Some((k, v)),
                     Some(&mut None) => None,
                     None => None,
                 },
@@ -988,7 +988,7 @@ mod test {
         {
             let mut iter = map.iter_mut();
             assert_eq!(iter.size_hint(), (0, Some(4)));
-            for (_k, mut v) in &mut iter {
+            for (_k, v) in &mut iter {
                 *v += 1;
             }
             assert_eq!(iter.size_hint(), (0, Some(0)));
