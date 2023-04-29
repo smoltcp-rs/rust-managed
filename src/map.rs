@@ -48,9 +48,9 @@ impl<'a, K: 'a, V: 'a> fmt::Debug for ManagedMap<'a, K, V>
         where K: fmt::Debug, V: fmt::Debug {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            &ManagedMap::Borrowed(ref x) => write!(f, "Borrowed({:?})", x),
+            ManagedMap::Borrowed(x) => write!(f, "Borrowed({:?})", x),
             #[cfg(any(feature = "std", feature = "alloc"))]
-            &ManagedMap::Owned(ref x)    => write!(f, "Owned({:?})", x)
+            ManagedMap::Owned(x)    => write!(f, "Owned({:?})", x)
         }
     }
 }
@@ -84,9 +84,9 @@ impl<T> From<Option<T>> for RevOption<T> {
     }
 }
 
-impl<T> Into<Option<T>> for RevOption<T> {
-    fn into(self) -> Option<T> {
-        match self {
+impl<T> From<RevOption<T>> for Option<T> {
+    fn from(val: RevOption<T>) -> Self {
+        match val {
             RevOption::Some(x) => Some(x),
             RevOption::None => None
         }
@@ -234,7 +234,7 @@ fn binary_search_by_key<K, V, Q>(slice: &[Option<(K, V)>], key: &Q) -> Result<us
     where K: Ord + Borrow<Q>, Q: Ord + ?Sized
 {
     slice.binary_search_by_key(&RevOption::Some(key), |entry| {
-        entry.as_ref().map(|&(ref key, _)| key.borrow()).into()
+        entry.as_ref().map(|(key, _)| key.borrow()).into()
     })
 }
 
@@ -269,14 +269,14 @@ impl<'a, K: Ord + 'a, V: 'a> ManagedMap<'a, K, V> {
         where K: Borrow<Q>, Q: Ord + ?Sized
     {
         match self {
-            &ManagedMap::Borrowed(ref pairs) => {
+            ManagedMap::Borrowed(pairs) => {
                 match pair_by_key(pairs, key.borrow()) {
-                    Ok(&(_, ref value)) => Some(value),
+                    Ok((_, value)) => Some(value),
                     Err(_) => None
                 }
             },
             #[cfg(any(feature = "std", feature = "alloc"))]
-            &ManagedMap::Owned(ref map) => map.get(key)
+            ManagedMap::Owned(map) => map.get(key)
         }
     }
 
@@ -299,7 +299,7 @@ impl<'a, K: Ord + 'a, V: 'a> ManagedMap<'a, K, V> {
             where K: Borrow<Q>, Q: Ord + ?Sized, R: RangeBounds<Q>, 'b: 'a
     {
         match self {
-            &ManagedMap::Borrowed(ref pairs) => {
+            ManagedMap::Borrowed(pairs) => {
                 match binary_search_by_key_range(&pairs[0..self.len()], range) {
                     Ok((begin, end)) => Range(RangeInner::Borrowed {
                         slice: &pairs[begin..end], begin: 0, end: end-begin }),
@@ -308,7 +308,7 @@ impl<'a, K: Ord + 'a, V: 'a> ManagedMap<'a, K, V> {
                 }
             },
             #[cfg(any(feature = "std", feature = "alloc"))]
-            &ManagedMap::Owned(ref map) => {
+            ManagedMap::Owned(map) => {
                 Range(RangeInner::Owned(map.range(range)))
             },
         }
@@ -364,10 +364,10 @@ impl<'a, K: Ord + 'a, V: 'a> ManagedMap<'a, K, V> {
     /// ManagedMap contains no elements?
     pub fn is_empty(&self) -> bool {
         match self {
-            &ManagedMap::Borrowed(ref pairs) =>
+            ManagedMap::Borrowed(pairs) =>
                 pairs.iter().all(|item| item.is_none()),
             #[cfg(any(feature = "std", feature = "alloc"))]
-            &ManagedMap::Owned(ref map) =>
+            ManagedMap::Owned(map) =>
                 map.is_empty()
         }
     }
@@ -375,22 +375,22 @@ impl<'a, K: Ord + 'a, V: 'a> ManagedMap<'a, K, V> {
     /// Returns the number of elements in the ManagedMap.
     pub fn len(&self) -> usize {
         match self {
-            &ManagedMap::Borrowed(ref pairs) =>
+            ManagedMap::Borrowed(pairs) =>
                 pairs.iter()
                 .take_while(|item| item.is_some())
                 .count(),
             #[cfg(any(feature = "std", feature = "alloc"))]
-            &ManagedMap::Owned(ref map) =>
+            ManagedMap::Owned(map) =>
                 map.len()
         }
     }
 
     pub fn iter(&self) -> Iter<K, V> {
         match self {
-            &ManagedMap::Borrowed(ref pairs) =>
+            ManagedMap::Borrowed(pairs) =>
                 Iter::Borrowed(pairs.iter()),
             #[cfg(any(feature = "std", feature = "alloc"))]
-            &ManagedMap::Owned(ref map) =>
+            ManagedMap::Owned(map) =>
                 Iter::Owned(map.iter()),
         }
     }
@@ -433,14 +433,14 @@ impl<'a, K: Ord + 'a, V: 'a> Iterator for Iter<'a, K, V> {
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         match self {
-            &Iter::Borrowed(ref iter) => {
+            Iter::Borrowed(iter) => {
                 let len = iter.clone()
                     .take_while(|item| item.is_some())
                     .count();
                 (len, Some(len))
             },
             #[cfg(any(feature = "std", feature = "alloc"))]
-            &Iter::Owned(ref iter) =>
+            Iter::Owned(iter) =>
                 iter.size_hint(),
         }
     }
@@ -473,12 +473,12 @@ impl<'a, K: Ord + 'a, V: 'a> Iterator for IterMut<'a, K, V> {
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         match self {
-            &IterMut::Borrowed(ref iter) => {
+            IterMut::Borrowed(iter) => {
                 let (_, upper) = iter.size_hint();
                 (0, upper)
             },
             #[cfg(any(feature = "std", feature = "alloc"))]
-            &IterMut::Owned(ref iter) =>
+            IterMut::Owned(iter) =>
                 iter.size_hint(),
         }
     }
@@ -504,7 +504,7 @@ mod test {
 
     fn unwrap<'a, K, V>(map: &'a ManagedMap<'a, K, V>) -> &'a [Option<(K, V)>] {
         match map {
-            &ManagedMap::Borrowed(ref map) => map,
+            ManagedMap::Borrowed(map) => map,
             _ => unreachable!()
         }
     }
