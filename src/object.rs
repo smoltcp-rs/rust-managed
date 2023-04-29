@@ -40,9 +40,9 @@ impl<'a, T: 'a + ?Sized> fmt::Debug for Managed<'a, T>
         where T: fmt::Debug {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            &Managed::Borrowed(ref x) => write!(f, "Borrowed({:?})", x),
+            Managed::Borrowed(x) => write!(f, "Borrowed({:?})", x),
             #[cfg(any(feature = "std", feature = "alloc"))]
-            &Managed::Owned(ref x)    => write!(f, "Owned({:?})", x)
+            Managed::Owned(x)    => write!(f, "Owned({:?})", x)
         }
     }
 }
@@ -72,9 +72,9 @@ impl<'a, T: 'a + ?Sized> Deref for Managed<'a, T> {
 
     fn deref(&self) -> &Self::Target {
         match self {
-            &Managed::Borrowed(ref value) => value,
+            Managed::Borrowed(value) => value,
             #[cfg(any(feature = "std", feature = "alloc"))]
-            &Managed::Owned(ref value) => value
+            Managed::Owned(value) => value
         }
     }
 }

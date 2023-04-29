@@ -38,9 +38,9 @@ impl<'a, T: 'a> fmt::Debug for ManagedSlice<'a, T>
         where T: fmt::Debug {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            &ManagedSlice::Borrowed(ref x) => write!(f, "Borrowed({:?})", x),
+            ManagedSlice::Borrowed(x) => write!(f, "Borrowed({:?})", x),
             #[cfg(any(feature = "std", feature = "alloc"))]
-            &ManagedSlice::Owned(ref x)    => write!(f, "Owned({:?})", x)
+            ManagedSlice::Owned(x)    => write!(f, "Owned({:?})", x)
         }
     }
 }
@@ -82,9 +82,9 @@ impl<'a, T: 'a> Deref for ManagedSlice<'a, T> {
 
     fn deref(&self) -> &Self::Target {
         match self {
-            &ManagedSlice::Borrowed(ref value) => value,
+            ManagedSlice::Borrowed(value) => value,
             #[cfg(any(feature = "std", feature = "alloc"))]
-            &ManagedSlice::Owned(ref value) => value
+            ManagedSlice::Owned(value) => value
         }
     }
 }
