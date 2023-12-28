@@ -177,7 +177,7 @@ fn binary_search_by_key_range<'a, K, V, Q: 'a, R>(slice: &[Option<(K, V)>], rang
                     Bound::Unbounded => unreachable!()
                 }
             }
-        };
+        }
         while left < right {
             let middle = left + (right - left) / 2;
             if is_before_range!(key!(slice[middle])) {
@@ -208,7 +208,7 @@ fn binary_search_by_key_range<'a, K, V, Q: 'a, R>(slice: &[Option<(K, V)>], rang
                     Bound::Unbounded => unreachable!()
                 }
             }
-        };
+        }
         right = slice.len(); // no need to reset left
         while left < right {
             let middle = left + (right - left + 1) / 2;
